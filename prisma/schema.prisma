@@ -1,0 +1,101 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Intern {
+  id          String        @id @default(cuid())
+  name        String
+  email       String        @unique
+  domain      String
+  startDate   DateTime
+  endDate     DateTime
+  status      String        @default("ORIENTATION_SCHEDULED")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  meetings    Meeting[]
+  submissions Submission[]
+  evaluations Evaluation[]
+  emailLogs   EmailLog[]
+}
+
+model TaskTemplate {
+  id               String   @id @default(cuid())
+  domain           String   @unique
+  title            String
+  description      String
+  deliverables     String
+  orientationNotes String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Meeting {
+  id            String        @id @default(cuid())
+  internId      String
+  intern        Intern        @relation(fields: [internId], references: [id], onDelete: Cascade)
+  type          String        // ORIENTATION | REVIEW
+  token         String        @unique
+  otp           String
+  scheduledAt   DateTime
+  status        String        @default("SCHEDULED") // SCHEDULED | VERIFIED | IN_PROGRESS | COMPLETED | CANCELLED
+  transcript    String?
+  reviewNumber  Int?
+  isFinalReview Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  submissions   Submission[]
+  evaluations   Evaluation[]
+}
+
+model Submission {
+  id          String        @id @default(cuid())
+  internId    String
+  intern      Intern        @relation(fields: [internId], references: [id], onDelete: Cascade)
+  meetingId   String?
+  meeting     Meeting?      @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  link        String?
+  textContent String?
+  fileName    String?
+  fileType    String?
+  rawContent  String?
+  createdAt   DateTime      @default(now())
+
+  evaluations Evaluation[]
+}
+
+model Evaluation {
+  id             String      @id @default(cuid())
+  internId       String
+  intern         Intern      @relation(fields: [internId], references: [id], onDelete: Cascade)
+  meetingId      String
+  meeting        Meeting     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  submissionId   String?
+  submission     Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  score          Float
+  completed      String      // JSON stringified array of items
+  missing        String      // JSON stringified array of items
+  suggestions    String      // JSON stringified array of items
+  spokenFeedback String      // Warm, natural mentor voice, 6-10 short sentences
+  emailFeedback  String      // Short mentor feedback for email
+  createdAt      DateTime    @default(now())
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  internId  String?
+  intern    Intern?  @relation(fields: [internId], references: [id], onDelete: SetNull)
+  to        String
+  subject   String
+  body      String
+  emailType String   // CONGRATULATIONS | ORIENTATION_INVITE | REVIEW_INVITE | REVIEW_FEEDBACK | CERTIFICATE | OTP
+  status    String   // SENT | MOCKED | FAILED
+  sentAt    DateTime @default(now())
+  error     String?
+}
